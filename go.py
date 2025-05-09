@@ -1,8 +1,21 @@
 import Board from Goban 
 import numpy as np
 
-def sum_liberties(board):    
-    return np.sum(Board._stringLiberties)
+def sum_liberties(board):  
+    #parcours board
+    liberties = 0
+    current_player = board._next_player
+    board_list = board.get_board()
+    for i in range(len(board_list)):
+        if board[i] == current_player:
+            id_stone = board._getStringOfStone(i)
+            liberties += board._stringLiberties[id_stone]
+        else:
+            id_stone = board._getStringOfStone(i)
+            liberties -= board._stringLiberties[id_stone]
+            
+    return liberties
+
 
 def territories(board):
     return Board._count_areas()
