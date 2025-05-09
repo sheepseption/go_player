@@ -21,13 +21,15 @@ def territories(board):
     return Board._count_areas()
 
 def heuristic(board):
+    black_ter = np.sum(territories(board)[0])
+    white_ter = np.sum(territories(board[1]))
+    liberties = sum_liberties(board)
     if Board._next_player == Board._BLACK:
-        sum_territories = np.sum(territories(board)[0]) - np.sum(territories(board[1]))
-        liberties = sum_liberties(board)
+        sum_territories = black_ter - white_ter
     else:
-        sum_territories = np.sum(territories(board)[1]) - np.sum(territories(board[0]))
-        liberties = sum_liberties(board)
+        sum_territories = white_ter - black_ter
     return sum_territories + liberties
+
 
 def minimax(board, depth, maximizing):
     if depth == 0 or board.is_game_over():
@@ -57,6 +59,44 @@ def best_move_minimax(board, depth):
     for move in board.legal_moves:
         board.push(move)
         val = minimax(board, depth - 1, False)
+        board.pop()
+        if val > best_val:
+            best_val = val
+            best_move = move
+    return best_move
+
+def alphabeta(board, depth, alpha, beta, maximizing):
+    if depth == 0 or board.is_game_over():
+        return heuristic(board)
+
+    if maximizing:
+        value = float('-inf')
+        for move in board.legal_moves:
+            board.push(move)
+            value = max(value, alphabeta(board, depth - 1, alpha, beta, False))
+            board.pop()
+            alpha = max(alpha, value)
+            if alpha >= beta:
+                break  # coupure
+        return value
+    else:
+        value = float('inf')
+        for move in board.legal_moves:
+            board.push(move)
+            value = min(value, alphabeta(board, depth - 1, alpha, beta, True))
+            board.pop()
+            beta = min(beta, value)
+            if beta <= alpha:
+                break
+        return value
+
+
+def best_move_alphabeta(board, depth):
+    best_val = float('-inf')
+    best_move = None
+    for move in board.legal_moves:
+        board.push(move)
+        val = alphabeta(board, depth - 1, float('-inf'), float('inf'), False)
         board.pop()
         if val > best_val:
             best_val = val

@@ -7,6 +7,7 @@ Right now, this class contains the copy of the randomPlayer. But you have to cha
 
 import time
 import Goban 
+import best_move_alphabeta from Go_heuristic
 from random import choice
 from playerInterface import *
 
@@ -28,8 +29,9 @@ class myPlayer(PlayerInterface):
         if self._board.is_game_over():
             print("Referee told me to play but the game is over!")
             return "PASS" 
-        moves = self._board.legal_moves() # Dont use weak_legal_moves() here!
-        move = choice(moves) 
+        #moves = self._board.legal_moves() # Dont use weak_legal_moves() here!
+        #move = choice(moves) 
+        move = best_move_alphabeta(self._board, 3)
         self._board.push(move)
 
         # New here: allows to consider internal representations of moves
