@@ -1,13 +1,15 @@
 from Goban import Board 
 import numpy as np
-
+import time
 def sum_liberties(board):  
     #parcours board
     liberties = 0
     current_player = board.next_player()
     board_list = board.get_board()
     for i in range(len(board_list)):
-        if board[i] == current_player:
+        if board_list[i] == 0:
+            continue
+        if board_list[i] == current_player:
             id_stone = board._getStringOfStone(i)
             liberties += board._stringLiberties[id_stone]
         else:
@@ -21,8 +23,10 @@ def territories(board):
     return board._count_areas()
 
 def heuristic(board):
-    black_ter = np.sum(territories(board)[0])
-    white_ter = np.sum(territories(board)[1])
+    print("counting heuristic")
+    ter = territories(board)
+    black_ter = np.sum(ter[0])
+    white_ter = np.sum(ter[1])
     liberties = sum_liberties(board)
     if board.next_player() == board._BLACK:
         sum_territories = black_ter - white_ter
@@ -31,47 +35,14 @@ def heuristic(board):
     return sum_territories + liberties
 
 
-def minimax(board, depth, maximizing):
-    if depth == 0 or board.is_game_over():
-        return heuristic(board)
-
-    if maximizing:
-        max_eval = float('-inf')
-        for move in board.legal_moves():
-            board.push(move)
-            eval = minimax(board, depth - 1, False)
-            board.pop()
-            max_eval = max(max_eval, eval)
-        return max_eval
-    else:
-        min_eval = float('inf')
-        for move in board.legal_moves():
-            board.push(move)
-            eval = minimax(board, depth - 1, True)
-            board.pop()
-            min_eval = min(min_eval, eval)
-        return min_eval
-
-
-def best_move_minimax(board, depth):
-    best_val = float('-inf')
-    best_move = None
-    for move in board.legal_moves():
-        board.push(move)
-        val = minimax(board, depth - 1, False)
-        board.pop()
-        if val > best_val:
-            best_val = val
-            best_move = move
-    return best_move
-
 def alphabeta(board, depth, alpha, beta, maximizing):
     if depth == 0 or board.is_game_over():
         return heuristic(board)
+    print("counting alphabeta")
 
     if maximizing:
         value = float('-inf')
-        for move in board.legal_moves():
+        for move in board.weak_legal_moves():
             board.push(move)
             value = max(value, alphabeta(board, depth - 1, alpha, beta, False))
             board.pop()
@@ -81,7 +52,7 @@ def alphabeta(board, depth, alpha, beta, maximizing):
         return value
     else:
         value = float('inf')
-        for move in board.legal_moves():
+        for move in board.weak_legal_moves():
             board.push(move)
             value = min(value, alphabeta(board, depth - 1, alpha, beta, True))
             board.pop()
@@ -90,15 +61,28 @@ def alphabeta(board, depth, alpha, beta, maximizing):
                 break
         return value
 
-
 def best_move_alphabeta(board, depth):
     best_val = float('-inf')
     best_move = None
-    for move in board.legal_moves():
+    for move in board.weak_legal_moves():
         board.push(move)
         val = alphabeta(board, depth - 1, float('-inf'), float('inf'), False)
         board.pop()
         if val > best_val:
             best_val = val
             best_move = move
+    print(best_move)
     return best_move
+
+
+def iterative_deepening(board, max_time=5.0):
+    start_time = time.perf_counter()
+    best = None
+    depth = 1
+    while time.perf_counter() - start_time < max_time:
+        try:
+            best = best_move_alphabeta(board, depth)
+            depth += 1
+        except Exception:
+            break
+    return best

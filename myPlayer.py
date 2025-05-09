@@ -7,7 +7,7 @@ Right now, this class contains the copy of the randomPlayer. But you have to cha
 
 import time
 import Goban 
-from Go_heuristic import best_move_alphabeta 
+from Go_heuristic import iterative_deepening 
 from random import choice
 from playerInterface import *
 
@@ -29,9 +29,12 @@ class myPlayer(PlayerInterface):
         if self._board.is_game_over():
             print("Referee told me to play but the game is over!")
             return "PASS" 
-        #moves = self._board.legal_moves() # Dont use weak_legal_moves() here!
-        #move = choice(moves) 
-        move = best_move_alphabeta(self._board, 3)
+        if(self._board._nbBLACK == 0) and (self._board._nbWHITE == 0):
+            moves = self._board.legal_moves() # Dont use weak_legal_moves() here!
+            move = choice(moves) 
+
+        else:
+            move = iterative_deepening(self._board)
         self._board.push(move)
 
         # New here: allows to consider internal representations of moves
