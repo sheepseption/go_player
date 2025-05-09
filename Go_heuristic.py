@@ -1,8 +1,9 @@
 from Goban import Board 
 import numpy as np
 import time
+
 def sum_liberties(board):  
-    #parcours board
+    """Calculate the difference in liberties between current player and opponent"""
     liberties = 0
     current_player = board.next_player()
     board_list = board.get_board()
@@ -18,71 +19,157 @@ def sum_liberties(board):
             
     return liberties
 
-
 def territories(board):
+    """Get territory information from the board"""
     return board._count_areas()
 
 def heuristic(board):
-    print("counting heuristic")
+    """Evaluate board position from current player's perspective"""
     ter = territories(board)
-    black_ter = np.sum(ter[0])
-    white_ter = np.sum(ter[1])
+    black_ter = ter[0]
+    white_ter = ter[1]
     liberties = sum_liberties(board)
+    
+    # Add stone count to the evaluation
+    black_stones = board._nbBLACK
+    white_stones = board._nbWHITE
+    
     if board.next_player() == board._BLACK:
         sum_territories = black_ter - white_ter
+        stone_diff = black_stones - white_stones
     else:
         sum_territories = white_ter - black_ter
-    return sum_territories + liberties
+        stone_diff = white_stones - black_stones
+        
+    return sum_territories + liberties + stone_diff
 
+def order_moves(board, moves):
+    """Simple move ordering to improve alphabeta efficiency"""
+    # Center moves are often better in Go
+    center = Board._BOARDSIZE // 2
+    
+    # Score moves based on distance to center and other metrics
+    def score_move(move):
+        if move == -1:  # PASS move
+            return -1000  # Low priority for passing
+        
+        x, y = Board.unflatten(move)
+        # Distance to center (negative so closer is better)
+        center_dist = -((x - center)**2 + (y - center)**2)
+        
+        # Check if move captures opponent stones
+        board.push(move)
+        captures = board._capturedBLACK + board._capturedWHITE
+        board.pop()
+        
+        return center_dist + captures * 10  # Captures are valuable
+        
+    # Return moves sorted by score (best first)
+    return sorted(moves, key=score_move, reverse=True)
 
-def alphabeta(board, depth, alpha, beta, maximizing):
+def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
+    """Alpha-beta pruning algorithm with time limit"""
+    # Check if time is up
+    if time.perf_counter() > end_time:
+        raise TimeoutError("Search timeout")
+        
     if depth == 0 or board.is_game_over():
         return heuristic(board)
-    print("counting alphabeta")
 
     if maximizing:
         value = float('-inf')
-        for move in board.weak_legal_moves():
-            board.push(move)
-            value = max(value, alphabeta(board, depth - 1, alpha, beta, False))
+        moves = order_moves(board, board.weak_legal_moves())
+        for move in moves:
+            if not board.push(move):  # Superko rule violation
+                board.pop()
+                continue
+                
+            try:
+                value = max(value, alphabeta(board, depth - 1, alpha, beta, False, max_time, end_time))
+            except TimeoutError:
+                board.pop()
+                raise
+                
             board.pop()
             alpha = max(alpha, value)
             if alpha >= beta:
-                break  # coupure
+                break  # Beta cutoff
         return value
     else:
         value = float('inf')
-        for move in board.weak_legal_moves():
-            board.push(move)
-            value = min(value, alphabeta(board, depth - 1, alpha, beta, True))
+        moves = order_moves(board, board.weak_legal_moves())
+        for move in moves:
+            if not board.push(move):  # Superko rule violation
+                board.pop()
+                continue
+                
+            try:
+                value = min(value, alphabeta(board, depth - 1, alpha, beta, True, max_time, end_time))
+            except TimeoutError:
+                board.pop()
+                raise
+                
             board.pop()
             beta = min(beta, value)
             if beta <= alpha:
-                break
+                break  # Alpha cutoff
         return value
 
-def best_move_alphabeta(board, depth):
+def best_move_alphabeta(board, depth, max_time, end_time):
+    """Find best move using alpha-beta with time limit"""
     best_val = float('-inf')
     best_move = None
-    for move in board.weak_legal_moves():
-        board.push(move)
-        val = alphabeta(board, depth - 1, float('-inf'), float('inf'), False)
-        board.pop()
-        if val > best_val:
-            best_val = val
-            best_move = move
-    print(best_move)
+    moves = order_moves(board, board.weak_legal_moves())
+    
+    for move in moves:
+        if time.perf_counter() > end_time:
+            break
+            
+        if not board.push(move):  # Handle superko rule
+            board.pop()
+            continue
+            
+        try:
+            val = alphabeta(board, depth - 1, float('-inf'), float('inf'), False, max_time, end_time)
+            if val > best_val:
+                best_val = val
+                best_move = move
+        except TimeoutError:
+            pass  # Just use best move found so far
+        finally:
+            board.pop()
+    
+    # If no move was evaluated (due to immediate timeout), pick the first legal one
+    if best_move is None and len(moves) > 0:
+        best_move = moves[0]
+        
     return best_move
 
-
-def iterative_deepening(board, max_time=5.0):
+def iterative_deepening(board, max_time=1.0):
+    """Iterative deepening with time limit"""
     start_time = time.perf_counter()
-    best = None
-    depth = 1
-    while time.perf_counter() - start_time < max_time:
+    end_time = start_time + max_time
+    
+    best_move = None
+    max_depth = 8  # Reasonable maximum depth
+    
+    for depth in range(1, max_depth + 1):
         try:
-            best = best_move_alphabeta(board, depth)
-            depth += 1
-        except Exception:
+            current_best = best_move_alphabeta(board, depth, max_time, end_time)
+            if current_best is not None:
+                best_move = current_best
+        except TimeoutError:
             break
-    return best
+            
+        # Check if we're running out of time
+        if time.perf_counter() > (end_time - 0.1):  # Save 100ms for cleanup
+            break
+            
+    # Return the best move found, or a random legal move if none was found
+    if best_move is None:
+        moves = board.weak_legal_moves()
+        if moves:
+            import random
+            best_move = random.choice(moves)
+            
+    return best_move
