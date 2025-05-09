@@ -1,10 +1,10 @@
-import Board from Goban 
+from Goban import Board 
 import numpy as np
 
 def sum_liberties(board):  
     #parcours board
     liberties = 0
-    current_player = board._next_player
+    current_player = board.next_player()
     board_list = board.get_board()
     for i in range(len(board_list)):
         if board[i] == current_player:
@@ -18,13 +18,13 @@ def sum_liberties(board):
 
 
 def territories(board):
-    return Board._count_areas()
+    return board._count_areas()
 
 def heuristic(board):
     black_ter = np.sum(territories(board)[0])
-    white_ter = np.sum(territories(board[1]))
+    white_ter = np.sum(territories(board)[1])
     liberties = sum_liberties(board)
-    if Board._next_player == Board._BLACK:
+    if board.next_player() == board._BLACK:
         sum_territories = black_ter - white_ter
     else:
         sum_territories = white_ter - black_ter
@@ -37,7 +37,7 @@ def minimax(board, depth, maximizing):
 
     if maximizing:
         max_eval = float('-inf')
-        for move in board.legal_moves:
+        for move in board.legal_moves():
             board.push(move)
             eval = minimax(board, depth - 1, False)
             board.pop()
@@ -45,7 +45,7 @@ def minimax(board, depth, maximizing):
         return max_eval
     else:
         min_eval = float('inf')
-        for move in board.legal_moves:
+        for move in board.legal_moves():
             board.push(move)
             eval = minimax(board, depth - 1, True)
             board.pop()
@@ -56,7 +56,7 @@ def minimax(board, depth, maximizing):
 def best_move_minimax(board, depth):
     best_val = float('-inf')
     best_move = None
-    for move in board.legal_moves:
+    for move in board.legal_moves():
         board.push(move)
         val = minimax(board, depth - 1, False)
         board.pop()
@@ -71,7 +71,7 @@ def alphabeta(board, depth, alpha, beta, maximizing):
 
     if maximizing:
         value = float('-inf')
-        for move in board.legal_moves:
+        for move in board.legal_moves():
             board.push(move)
             value = max(value, alphabeta(board, depth - 1, alpha, beta, False))
             board.pop()
@@ -81,7 +81,7 @@ def alphabeta(board, depth, alpha, beta, maximizing):
         return value
     else:
         value = float('inf')
-        for move in board.legal_moves:
+        for move in board.legal_moves():
             board.push(move)
             value = min(value, alphabeta(board, depth - 1, alpha, beta, True))
             board.pop()
@@ -94,7 +94,7 @@ def alphabeta(board, depth, alpha, beta, maximizing):
 def best_move_alphabeta(board, depth):
     best_val = float('-inf')
     best_move = None
-    for move in board.legal_moves:
+    for move in board.legal_moves():
         board.push(move)
         val = alphabeta(board, depth - 1, float('-inf'), float('inf'), False)
         board.pop()

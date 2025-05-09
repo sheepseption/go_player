@@ -7,7 +7,7 @@ Right now, this class contains the copy of the randomPlayer. But you have to cha
 
 import time
 import Goban 
-import best_move_alphabeta from Go_heuristic
+from Go_heuristic import best_move_alphabeta 
 from random import choice
 from playerInterface import *
 
