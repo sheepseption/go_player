@@ -2,6 +2,7 @@ from Goban import Board
 import numpy as np
 import time
 
+cache = {}
 
 def sum_liberties(board):  
     """Calculate the difference in liberties between current player and opponent"""
@@ -80,7 +81,8 @@ def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
 
     if maximizing:
         value = float('-inf')
-        moves = order_moves(board, board.weak_legal_moves())
+        
+        moves = order_moves(board, board.legal_moves())
         for move in moves:
             if not board.push(move):  # Superko rule violation
                 board.pop()
@@ -99,7 +101,7 @@ def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
         return value
     else:
         value = float('inf')
-        moves = order_moves(board, board.weak_legal_moves())
+        moves = order_moves(board, board.legal_moves())
         for move in moves:
             if not board.push(move):  # Superko rule violation
                 board.pop()
@@ -121,7 +123,7 @@ def best_move_alphabeta(board, depth, max_time, end_time):
     """Find best move using alpha-beta with time limit"""
     best_val = float('-inf')
     best_move = None
-    moves = order_moves(board, board.weak_legal_moves())
+    moves = order_moves(board, board.legal_moves())
     
     for move in moves:
         if time.perf_counter() > end_time:
