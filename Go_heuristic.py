@@ -2,6 +2,7 @@ from Goban import Board
 import numpy as np
 import time
 
+
 def sum_liberties(board):  
     """Calculate the difference in liberties between current player and opponent"""
     liberties = 0
@@ -12,10 +13,10 @@ def sum_liberties(board):
             continue
         if board_list[i] == current_player:
             id_stone = board._getStringOfStone(i)
-            liberties += board._stringLiberties[id_stone]
+            liberties += int(board._stringLiberties[id_stone])
         else:
             id_stone = board._getStringOfStone(i)
-            liberties -= board._stringLiberties[id_stone]
+            liberties -= int(board._stringLiberties[id_stone])
             
     return liberties
 
@@ -26,13 +27,14 @@ def territories(board):
 def heuristic(board):
     """Evaluate board position from current player's perspective"""
     ter = territories(board)
-    black_ter = ter[0]
-    white_ter = ter[1]
+    black_ter = int(ter[0])
+    white_ter = int(ter[1])
     liberties = sum_liberties(board)
     
     # Add stone count to the evaluation
-    black_stones = board._nbBLACK
-    white_stones = board._nbWHITE
+    black_stones = int(board._nbBLACK)
+    white_stones = int(board._nbWHITE)
+
     
     if board.next_player() == board._BLACK:
         sum_territories = black_ter - white_ter
@@ -41,7 +43,7 @@ def heuristic(board):
         sum_territories = white_ter - black_ter
         stone_diff = white_stones - black_stones
         
-    return sum_territories + liberties + stone_diff
+    return int(sum_territories) + int(liberties) + int(stone_diff)
 
 def order_moves(board, moves):
     """Simple move ordering to improve alphabeta efficiency"""
@@ -59,10 +61,10 @@ def order_moves(board, moves):
         
         # Check if move captures opponent stones
         board.push(move)
-        captures = board._capturedBLACK + board._capturedWHITE
+        captures = int(board._capturedBLACK + board._capturedWHITE)
         board.pop()
         
-        return center_dist + captures * 10  # Captures are valuable
+        return int(center_dist) + captures * 10
         
     # Return moves sorted by score (best first)
     return sorted(moves, key=score_move, reverse=True)
