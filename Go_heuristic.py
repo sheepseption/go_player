@@ -1,6 +1,8 @@
 from Goban import Board 
 import numpy as np
 import time
+import json
+from collections import Counter
 
 cache = {}
 
@@ -177,3 +179,41 @@ def iterative_deepening(board, max_time=1.0):
             best_move = random.choice(moves)
             
     return best_move
+
+
+
+
+
+def first_move(board):
+    json_file = 'plays-8x8.json'
+    current_player = board.next_player()
+    try:
+            with open(json_file, 'r') as f:
+                games = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File {json_file} not found.")
+        return None
+    except json.JSONDecodeError:
+        print(f"Error: File {json_file} contains invalid JSON.")
+        return None
+    
+
+    winner = "BLACK" if current_player == Board._BLACK else "WHITE"
+    
+    # On regroupe les premiers coûts gagnants pour le joueur courant
+    winning_openings = []
+    
+    for game in games:
+        if game["winner"] == winner and len(game["moves"]) > 0:
+            winning_openings.append(game["moves"][0])
+    
+    # Find the most common winning first move
+    if winning_openings:
+        move_counts = Counter(winning_openings)
+        best_move = move_counts.most_common(1)[0][0]
+        print(f"Choosing move {best_move} which has led to {move_counts[best_move]} wins for {winner}")
+        return best_move
+    else:
+        # If no winning moves found, return a common opening move
+        print(f"No winning moves found for {winner}, using default opening move")
+        return "D4"  # Common opening move
