@@ -4,10 +4,14 @@ import time
 import json
 from collections import Counter
 
+# implémentation avec à faire
+
 cache = {}
 
+# calcul de la différence des libertés pour le calcul de l'heuristique
+
 def sum_liberties(board):  
-    """Calculate the difference in liberties between current player and opponent"""
+
     liberties = 0
     current_player = board.next_player()
     board_list = board.get_board()
@@ -24,17 +28,18 @@ def sum_liberties(board):
     return liberties
 
 def territories(board):
-    """Get territory information from the board"""
     return board._count_areas()
 
+
+# Fonction de l'heuristique:
+
 def heuristic(board):
-    """Evaluate board position from current player's perspective"""
     ter = territories(board)
     black_ter = int(ter[0])
     white_ter = int(ter[1])
     liberties = sum_liberties(board)
     
-    # Add stone count to the evaluation
+    # on considère la différence des pierres sur le plateau
     black_stones = int(board._nbBLACK)
     white_stones = int(board._nbWHITE)
 
@@ -48,48 +53,47 @@ def heuristic(board):
         
     return int(sum_territories) + int(liberties) + int(stone_diff)
 
+
+
+# L'une des idées retrouvées c'est le fait que plus on joue près du centre plus le coût est bon
+# On ordonne alors suivant la distance
+
 def order_moves(board, moves):
-    """Simple move ordering to improve alphabeta efficiency"""
-    # Center moves are often better in Go
     center = Board._BOARDSIZE // 2
-    
-    # Score moves based on distance to center and other metrics
     def score_move(move):
-        if move == -1:  # PASS move
-            return -1000  # Low priority for passing
+        if move == -1:  
+            return -1000  
         
         x, y = Board.unflatten(move)
-        # Distance to center (negative so closer is better)
         center_dist = -((x - center)**2 + (y - center)**2)
-        
-        # Check if move captures opponent stones
+
         board.push(move)
         captures = int(board._capturedBLACK + board._capturedWHITE)
         board.pop()
         
         return int(center_dist) + captures * 10
         
-    # Return moves sorted by score (best first)
     return sorted(moves, key=score_move, reverse=True)
 
+
+
+# Fonction alpha beta
+
 def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
-    """Alpha-beta pruning algorithm with time limit"""
-    # Check if time is up
     if time.perf_counter() > end_time:
         raise TimeoutError("Search timeout")
-        
+    
     if depth == 0 or board.is_game_over():
         return heuristic(board)
 
     if maximizing:
         value = float('-inf')
-        
+
         moves = order_moves(board, board.legal_moves())
         for move in moves:
-            if not board.push(move):  # Superko rule violation
+            if not board.push(move):  
                 board.pop()
-                continue
-                
+                continue    
             try:
                 value = max(value, alphabeta(board, depth - 1, alpha, beta, False, max_time, end_time))
             except TimeoutError:
@@ -99,13 +103,13 @@ def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
             board.pop()
             alpha = max(alpha, value)
             if alpha >= beta:
-                break  # Beta cutoff
+                break  
         return value
     else:
         value = float('inf')
         moves = order_moves(board, board.legal_moves())
         for move in moves:
-            if not board.push(move):  # Superko rule violation
+            if not board.push(move): 
                 board.pop()
                 continue
                 
@@ -118,11 +122,13 @@ def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
             board.pop()
             beta = min(beta, value)
             if beta <= alpha:
-                break  # Alpha cutoff
+                break  
         return value
 
+
+# Utilisation de alpha beta pour chercher un bon mouvement dans des meilleurs délais
+
 def best_move_alphabeta(board, depth, max_time, end_time):
-    """Find best move using alpha-beta with time limit"""
     best_val = float('-inf')
     best_move = None
     moves = order_moves(board, board.legal_moves())
@@ -131,7 +137,7 @@ def best_move_alphabeta(board, depth, max_time, end_time):
         if time.perf_counter() > end_time:
             break
             
-        if not board.push(move):  # Handle superko rule
+        if not board.push(move):  
             board.pop()
             continue
             
@@ -141,23 +147,24 @@ def best_move_alphabeta(board, depth, max_time, end_time):
                 best_val = val
                 best_move = move
         except TimeoutError:
-            pass  # Just use best move found so far
+            pass  
         finally:
             board.pop()
-    
-    # If no move was evaluated (due to immediate timeout), pick the first legal one
+
     if best_move is None and len(moves) > 0:
         best_move = moves[0]
         
     return best_move
 
+
+# Fonction de l'iterative deepening
+
 def iterative_deepening(board, max_time=1.0):
-    """Iterative deepening with time limit"""
     start_time = time.perf_counter()
     end_time = start_time + max_time
     
     best_move = None
-    max_depth = 8  # Reasonable maximum depth
+    max_depth = 8  
     
     for depth in range(1, max_depth + 1):
         try:
@@ -166,12 +173,10 @@ def iterative_deepening(board, max_time=1.0):
                 best_move = current_best
         except TimeoutError:
             break
-            
-        # Check if we're running out of time
-        if time.perf_counter() > (end_time - 0.1):  # Save 100ms for cleanup
+
+        if time.perf_counter() > (end_time - 0.1): 
             break
-            
-    # Return the best move found, or a random legal move if none was found
+
     if best_move is None:
         moves = board.weak_legal_moves()
         if moves:
@@ -183,6 +188,7 @@ def iterative_deepening(board, max_time=1.0):
 
 
 
+# Choix raisonnable du coût d'ouverture en se basant sur le .json
 
 def first_move(board):
     json_file = 'plays-8x8.json'
@@ -207,13 +213,11 @@ def first_move(board):
         if game["winner"] == winner and len(game["moves"]) > 0:
             winning_openings.append(game["moves"][0])
     
-    # Find the most common winning first move
     if winning_openings:
         move_counts = Counter(winning_openings)
         best_move = move_counts.most_common(1)[0][0]
         print(f"Choosing move {best_move} which has led to {move_counts[best_move]} wins for {winner}")
         return best_move
     else:
-        # If no winning moves found, return a common opening move
         print(f"No winning moves found for {winner}, using default opening move")
-        return "D4"  # Common opening move
+        return "D4"  # Coût par défaut
