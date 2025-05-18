@@ -1,3 +1,10 @@
+""" Binôme :
+    SALHI Mohammed-Amine
+    TABET AOUL Hanaa
+"""
+
+
+
 from Goban import Board 
 import numpy as np
 import time
@@ -194,21 +201,19 @@ def first_move(board):
     json_file = 'plays-8x8.json'
     current_player = board.next_player()
     try:
-            with open(json_file, 'r') as f:
-                games = json.load(f)
+        with open(json_file, 'r') as f:
+            games = json.load(f)
     except FileNotFoundError:
         print(f"Error: File {json_file} not found.")
-        return None
+        return "D4"  
     except json.JSONDecodeError:
         print(f"Error: File {json_file} contains invalid JSON.")
-        return None
+        return "D4"  
     
-
     winner = "BLACK" if current_player == Board._BLACK else "WHITE"
     
-    # On regroupe les premiers coûts gagnants pour le joueur courant
+    # On regroupe les premiers coups gagnants pour le joueur courant
     winning_openings = []
-    
     for game in games:
         if game["winner"] == winner and len(game["moves"]) > 0:
             winning_openings.append(game["moves"][0])
@@ -220,4 +225,4 @@ def first_move(board):
         return best_move
     else:
         print(f"No winning moves found for {winner}, using default opening move")
-        return "D4"  # Coût par défaut
+        return "D4"  # Coup par défaut

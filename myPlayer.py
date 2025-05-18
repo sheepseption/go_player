@@ -1,3 +1,9 @@
+""" Binôme :
+    SALHI Mohammed-Amine
+    TABET AOUL Hanaa
+"""
+
+
 # -*- coding: utf-8 -*-
 ''' This is the file you have to modify for the tournament. Your default AI player must be called by this module, in the
 myPlayer class.
