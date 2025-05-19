@@ -25,26 +25,27 @@ def territories(board):
     """Get territory information from the board"""
     return board._count_areas()
 
-def heuristic(board):
-    """Evaluate board position from current player's perspective"""
-    ter = territories(board)
-    black_ter = int(ter[0])
-    white_ter = int(ter[1])
+def _raw_heuristic(board):
+    """Ancien contenu de heuristic(...) sans cache."""
+    ter = board._count_areas()
+    black_ter, white_ter = int(ter[0]), int(ter[1])
     liberties = sum_liberties(board)
-    
-    # Add stone count to the evaluation
     black_stones = int(board._nbBLACK)
     white_stones = int(board._nbWHITE)
-
-    
     if board.next_player() == board._BLACK:
         sum_territories = black_ter - white_ter
-        stone_diff = black_stones - white_stones
+        stone_diff     = black_stones - white_stones
     else:
         sum_territories = white_ter - black_ter
-        stone_diff = white_stones - black_stones
-        
-    return int(sum_territories) + int(liberties) + int(stone_diff)
+        stone_diff     = white_stones - black_stones
+    return sum_territories + liberties + stone_diff
+
+# 4) Nouvelle version de heuristic avec cache
+def heuristic(board):
+    z = compute_zobrist_hash(board)
+    if z not in cache:
+        cache[z] = _raw_heuristic(board)
+    return cache[z]
 
 def order_moves(board, moves):
     """Simple move ordering to improve alphabeta efficiency"""
@@ -69,6 +70,17 @@ def order_moves(board, moves):
         
     # Return moves sorted by score (best first)
     return sorted(moves, key=score_move, reverse=True)
+
+def compute_zobrist_hash(board):
+    flat = board.get_board()
+    h = 0
+    for i, stone in enumerate(flat):
+        if stone == board._BLACK:
+            h ^= int(board._positionHashes[i, 0])
+        elif stone == board._WHITE:
+            h ^= int(board._positionHashes[i, 1])
+    return h
+
 
 def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
     """Alpha-beta pruning algorithm with time limit"""
