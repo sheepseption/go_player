@@ -1,3 +1,9 @@
+""" Binôme :
+    SALHI Mohammed-Amine
+    TABET AOUL Hanaa
+"""
+
+
 # -*- coding: utf-8 -*-
 ''' This is the file you have to modify for the tournament. Your default AI player must be called by this module, in the
 myPlayer class.
@@ -7,7 +13,7 @@ Right now, this class contains the copy of the randomPlayer. But you have to cha
 
 import time
 import Goban 
-from Go_heuristic import iterative_deepening 
+from Go_heuristic import iterative_deepening, first_move 
 from random import choice
 from playerInterface import *
 
@@ -31,11 +37,14 @@ class myPlayer(PlayerInterface):
             return "PASS" 
         
         # If this is the first move of the game, play near center
-        if (self._board._nbBLACK == 0) and (self._board._nbWHITE == 0):
+        #if (self._board._nbBLACK == 0) and (self._board._nbWHITE == 0):
             # Play near center for first move
-            center = Goban.Board._BOARDSIZE // 2
+        #    center = Goban.Board._BOARDSIZE // 2
             # Slightly offset from true center
-            move = Goban.Board.flatten((center, center-1))
+        #    move = Goban.Board.flatten((center, center-1))
+        # choisir le move d'ouverture suivant play-8x8.json
+        if (self._board._nbBLACK == 0) and (self._board._nbWHITE == 0):
+            move = first_move(self._board)
         else:
             # Use iterative deepening with a reasonable time limit
             move = iterative_deepening(self._board, max_time=1.0)
