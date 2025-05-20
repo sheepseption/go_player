@@ -4,7 +4,6 @@
 """
 
 
-
 from Goban import Board 
 import numpy as np
 import time
@@ -19,53 +18,41 @@ cache = {}
 
 def sum_liberties(board):  
 
-    liberties = 0
-    current_player = board.next_player()
-    board_list = board.get_board()
-    for i in range(len(board_list)):
-        if board_list[i] == 0:
-            continue
-        if board_list[i] == current_player:
-            id_stone = board._getStringOfStone(i)
-            liberties += int(board._stringLiberties[id_stone])
-        else:
-            id_stone = board._getStringOfStone(i)
-            liberties -= int(board._stringLiberties[id_stone])
-            
-    return liberties
+    cur = board.next_player()
+    # vectorisation des libertés par chaîne pour accélérer
+    roots = np.where(board._stringLiberties != -1)[0]
+    libs = board._stringLiberties[roots]
+    stones = board.get_board()[roots]
+    own_libs = libs[stones == cur].sum()
+    opp_libs = libs[(stones != cur) & (stones != Board._EMPTY)].sum()
+    return int(own_libs - opp_libs)
+
 
 def territories(board):
     return board._count_areas()
 
-def _raw_heuristic(board):
-    """Ancien contenu de heuristic(...) sans cache."""
-    ter = board._count_areas()
-    black_ter, white_ter = int(ter[0]), int(ter[1])
-    liberties = sum_liberties(board)
-    
-    # on considère la différence des pierres sur le plateau
-    black_stones = int(board._nbBLACK)
-    white_stones = int(board._nbWHITE)
-    if board.next_player() == board._BLACK:
-        sum_territories = black_ter - white_ter
-        stone_diff     = black_stones - white_stones
-    else:
-        sum_territories = white_ter - black_ter
-        stone_diff = white_stones - black_stones
-    return sum_territories + liberties + stone_diff
 
-# 4) Nouvelle version de heuristic avec cache
+# Fonction de l'heuristique:
+
 def heuristic(board):
-    z = compute_zobrist_hash(board)
+    z = board._currentHash  # utilise le hash courant
     if z not in cache:
-        cache[z] = _raw_heuristic(board)
+        ter = territories(board)
+        black_ter = int(ter[0])
+        white_ter = int(ter[1])
+        liberties = sum_liberties(board)
+        black_stones = int(board._nbBLACK)
+        white_stones = int(board._nbWHITE)
+
+        if board.next_player() == board._BLACK:
+            sum_territories = black_ter - white_ter
+            stone_diff = black_stones - white_stones
+        else:
+            sum_territories = white_ter - black_ter
+            stone_diff = white_stones - black_stones
+
+        cache[z] = int(sum_territories) + int(liberties) + int(stone_diff)
     return cache[z]
-
-
-
-# L'une des idées retrouvées c'est le fait que plus on joue près du centre plus le coût est bon
-# On ordonne alors suivant la distance
-
 
 
 # L'une des idées retrouvées c'est le fait que plus on joue près du centre plus le coût est bon
@@ -76,32 +63,19 @@ def order_moves(board, moves):
     def score_move(move):
         if move == -1:  
             return -1000  
-        
-        x, y = Board.unflatten(move)
+        # coordonnées via opérations entières plutôt qu'unflatten
+        x = move % Board._BOARDSIZE
+        y = move // Board._BOARDSIZE
         center_dist = -((x - center)**2 + (y - center)**2)
 
-        board.push(move)
-        captures = int(board._capturedBLACK + board._capturedWHITE)
+        ok = board.push(move)
+        captures = int(board._capturedBLACK) + int(board._capturedWHITE)
         board.pop()
-        
         return int(center_dist) + captures * 10
-        
     return sorted(moves, key=score_move, reverse=True)
 
 
-
 # Fonction alpha beta
-
-def compute_zobrist_hash(board):
-    flat = board.get_board()
-    h = 0
-    for i, stone in enumerate(flat):
-        if stone == board._BLACK:
-            h ^= int(board._positionHashes[i, 0])
-        elif stone == board._WHITE:
-            h ^= int(board._positionHashes[i, 1])
-    return h
-
 
 def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
     if time.perf_counter() > end_time:
@@ -112,41 +86,42 @@ def alphabeta(board, depth, alpha, beta, maximizing, max_time, end_time):
 
     if maximizing:
         value = float('-inf')
-
-        moves = order_moves(board, board.legal_moves())
+        # utilise weak_legal_moves pour vitesse
+        moves = order_moves(board, board.weak_legal_moves())
         for move in moves:
-            if not board.push(move):  
+            ok = board.push(move)
+            if not ok:
                 board.pop()
-                continue    
+                continue
             try:
-                value = max(value, alphabeta(board, depth - 1, alpha, beta, False, max_time, end_time))
+                child_val = alphabeta(board, depth - 1, alpha, beta, False, max_time, end_time)
+                value = max(value, child_val)
+                alpha = max(alpha, value)
             except TimeoutError:
                 board.pop()
                 raise
-                
             board.pop()
-            alpha = max(alpha, value)
             if alpha >= beta:
-                break  
+                break
         return value
     else:
         value = float('inf')
-        moves = order_moves(board, board.legal_moves())
+        moves = order_moves(board, board.weak_legal_moves())
         for move in moves:
-            if not board.push(move): 
+            ok = board.push(move)
+            if not ok:
                 board.pop()
                 continue
-                
             try:
-                value = min(value, alphabeta(board, depth - 1, alpha, beta, True, max_time, end_time))
+                child_val = alphabeta(board, depth - 1, alpha, beta, True, max_time, end_time)
+                value = min(value, child_val)
+                beta = min(beta, value)
             except TimeoutError:
                 board.pop()
                 raise
-                
             board.pop()
-            beta = min(beta, value)
             if beta <= alpha:
-                break  
+                break
         return value
 
 
@@ -160,24 +135,22 @@ def best_move_alphabeta(board, depth, max_time, end_time):
     for move in moves:
         if time.perf_counter() > end_time:
             break
-            
-        if not board.push(move):  
+        ok = board.push(move)
+        if not ok:
             board.pop()
             continue
-            
         try:
             val = alphabeta(board, depth - 1, float('-inf'), float('inf'), False, max_time, end_time)
             if val > best_val:
                 best_val = val
                 best_move = move
         except TimeoutError:
-            pass  
+            pass
         finally:
             board.pop()
 
     if best_move is None and len(moves) > 0:
         best_move = moves[0]
-        
     return best_move
 
 
@@ -197,8 +170,7 @@ def iterative_deepening(board, max_time=1.0):
                 best_move = current_best
         except TimeoutError:
             break
-
-        if time.perf_counter() > (end_time - 0.1): 
+        if time.perf_counter() > (end_time - 0.1):
             break
 
     if best_move is None:
@@ -206,10 +178,7 @@ def iterative_deepening(board, max_time=1.0):
         if moves:
             import random
             best_move = random.choice(moves)
-            
     return best_move
-
-
 
 
 # Choix raisonnable du coût d'ouverture en se basant sur le .json
